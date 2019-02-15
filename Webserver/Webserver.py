@@ -4,13 +4,20 @@ from twisted.web.static import File
 from twisted.internet import endpoints, reactor
 from twisted.web.server import Site
 from klein import Klein
+import RPi.GPIO as GPIO
+import json
 
 
 class Webserver(threading.Thread):
     app = Klein()
 
-    def __init__(self):
+    def __init__(self, id, data, stats):
         threading.Thread.__init__(self)
+
+        self.id = id
+        self.data = data
+        self.stats = stats
+
 
     def run(self):
         # self.app.run("localhost", 8080)
@@ -29,8 +36,110 @@ class Webserver(threading.Thread):
     def stop(self):
         self._Thread__stop()
 
-    @app.route('/', branch=True)
-    def static(self, request):
+    @app.route('/')
+    def pg_root(self, request):
+        return 'I am the root page!'
 
-        return 'test'
+    """
+    Create new asset
+    """
 
+    @app.route('/asset', methods=['POST'])
+    def post_asset(self, request):
+        print 'POST'
+
+        asset = json.loads(request.content.read())
+        asset['id'] = self.data[-1]['id'] + 1
+        self.data.append(asset)
+
+        self.set_headers(request)
+
+        return json.dumps(asset)
+
+    """
+    Get all assets
+    """
+    @app.route('/asset')
+    def get_assets(self, request):
+        print 'GET'
+
+        self.set_headers(request)
+
+        return json.dumps(self.data)
+
+    """
+    Update asset
+    """
+    @app.route('/asset/<int:id>', methods=['PUT'])
+    def put_asset(self, request, id):
+        print 'PUT'
+
+        obj = None
+        asset = json.loads(request.content.read())
+
+        for object in self.data:
+            if object['id'] == id:
+                obj = object
+
+        if obj is not None:
+            if obj['status'] != asset['status']:
+                obj['status'] = asset['status']
+                GPIO.output(obj['gpio'], asset['status'])
+
+        self.set_headers(request)
+
+        return json.dumps(self.data)
+
+    """
+    Delete asset
+    """
+    @app.route('/asset/<int:id>', methods=['DELETE'])
+    def delete_asset(self, request, id):
+        print 'DELETE'
+
+        index = None
+
+        for object in self.data:
+            if object['id'] == id:
+                index = self.data.index(object)
+
+        if index is not None:
+            del self.data[index]
+
+        self.set_headers(request)
+
+        return json.dumps(self.data)
+
+    """
+    Get specific asset
+    """
+    @app.route('/asset/<int:id>')
+    def get_asset(self, request, id):
+        print 'GET'
+
+        obj = None
+
+        for object in self.data:
+            if object['id'] == id:
+                obj = object
+
+        self.set_headers(request)
+
+        return json.dumps(obj)
+
+    """
+    Get stats
+    """
+    @app.route('/stats')
+    def get_stats(self, request):
+
+        self.set_headers(request)
+
+        return json.dumps(self.stats)
+
+    def set_headers(self, request):
+        request.setHeader('Content-Type', 'application/json')
+        request.setHeader('Access-Control-Allow-Origin', '*')
+        request.setHeader('Access-Control-Allow-Methods', 'GET')
+        request.setHeader('Access-Control-Allow-Headers', 'x-prototype-version,x-requested-with')
+        request.setHeader('Access-Control-Max-Age', 2520)
