@@ -5,11 +5,43 @@ from signal import SIGINT, SIGTERM, signal
 from time import sleep
 from Webserver import Webserver
 import RPi.GPIO as GPIO
+import json
 
 
 def main():
 
-    global web
+    global web, id, data, stats
+
+    id = 10
+    data = json.loads("""
+    [{
+		"id": 11,
+		"status": "on",
+		"name": "Freezer",
+		"times": [{
+			"startTime": "NULL",
+			"endTime": "NULL",
+			"minDuration": "NULL"
+		}],
+		"gpio": 18
+	},
+	{
+		"id": 12,
+		"status": "on",
+		"name": "Charging Station",
+		"times": [{
+			"startTime": "NULL",
+			"endTime": "NULL",
+			"minDuration": "NULL"
+		}],
+		"gpio": 23
+	}]""")
+
+    stats = json.loads("""
+    {
+        "points": 0
+    }
+    """)
 
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -22,7 +54,7 @@ def main():
     signal(SIGINT, exit_gracefully)
     signal(SIGTERM, exit_gracefully)
 
-    web = Webserver.Webserver()
+    web = Webserver.Webserver(10, data, stats)
     web.start()
 
     while True:
