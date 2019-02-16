@@ -76,15 +76,9 @@ class Webserver(threading.Thread):
 
         obj = None
         asset = json.loads(request.content.read())
+        print asset
 
-        for object in self.data:
-            if object['id'] == id:
-                obj = object
-
-        if obj is not None:
-            if obj['status'] != asset['status']:
-                obj['status'] = asset['status']
-                GPIO.output(obj['gpio'], asset['status'])
+        self.set_asset(asset, id, True)
 
         self.set_headers(request)
 
@@ -143,3 +137,32 @@ class Webserver(threading.Thread):
         request.setHeader('Access-Control-Allow-Methods', 'GET')
         request.setHeader('Access-Control-Allow-Headers', 'x-prototype-version,x-requested-with')
         request.setHeader('Access-Control-Max-Age', 2520)
+
+    def set_stats(self, stats):
+        self.stats = stats
+
+    def get_stats(self):
+        return self.stats
+
+    def set_assets(self, assets):
+        for asset in assets:
+            self.set_asset(asset, asset['id'], False)
+
+    def set_asset(self, asset, id, setall):
+        obj = None
+
+        for object in self.data:
+            if object['id'] == id:
+                obj = object
+
+        if obj is not None:
+            if obj['status'] != asset['status']:
+                obj['status'] = asset['status']
+                GPIO.output(obj['gpio'], asset['status'])
+
+            if setall:
+                obj['name'] = asset['name']
+                obj['times'] = asset['times']
+
+    def get_assets(self):
+        return self.data
